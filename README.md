@@ -1,2 +1,2 @@
-# LOLImporter
-League Of Legends Import Plugin For Unreal Engine 4
+# LoLImporter
+League Of Legends UE4 Importer Plugin (Alpha Version)
