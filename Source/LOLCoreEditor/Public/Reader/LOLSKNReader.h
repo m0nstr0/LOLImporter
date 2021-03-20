@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Reader/LOLReader.h"
-#include "Types/LOLAsset.h"
+#include "Type/LOLMesh.h"
 
 namespace LOLImporter
 {
@@ -10,7 +10,7 @@ namespace LOLImporter
     {
     public:
         FLOLSKNReader(const TArray<uint8>& InData): FLOLReader::FLOLReader(InData) {};
-        bool Read(FLOLAsset& Asset) override;
+        bool Read(FLOLMesh& Mesh);
         virtual ~FLOLSKNReader() {};
     };
 }

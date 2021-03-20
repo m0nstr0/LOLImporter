@@ -1,4 +1,4 @@
-#include "Types/LOLLogger.h"
+#include "Type/LOLLogger.h"
 
 namespace LOLImporter
 {

@@ -2,7 +2,7 @@
 
 namespace LOLImporter
 {
-    bool FLOLSKNReader::Read(FLOLAsset& Asset)
+    bool FLOLSKNReader::Read(FLOLMesh& Mesh)
     {
         uint32 Magic = 0;
         uint16 MajorVersion = 0;
@@ -35,7 +35,7 @@ namespace LOLImporter
         //SubMeshes
         if (MajorVersion == 0)
         {
-            FLOLSubMesh& SubMesh = Asset.Mesh.SubMeshes.Emplace_GetRef();
+            FLOLSubMesh& SubMesh = Mesh.SubMeshes.Emplace_GetRef();
 
             GetReader().Serialize(&IndexCount, sizeof(IndexCount));
             GetReader().Serialize(&VertexCount, sizeof(VertexCount));
@@ -55,11 +55,11 @@ namespace LOLImporter
                 return false;
             }
 
-            Asset.Mesh.SubMeshes.Empty(SubMeshCount);
+            Mesh.SubMeshes.Empty(SubMeshCount);
 
             for (uint32 i = 0; i < SubMeshCount; i++)
             {
-                FLOLSubMesh& SubMesh = Asset.Mesh.SubMeshes.Emplace_GetRef();
+                FLOLSubMesh& SubMesh = Mesh.SubMeshes.Emplace_GetRef();
 
                 uint8 Name[64];
                 GetReader().Serialize(Name, sizeof(Name));
@@ -126,10 +126,10 @@ namespace LOLImporter
         }
 
         // Indices
-        Asset.Mesh.Indices.Empty(IndexCount);
+        Mesh.Indices.Empty(IndexCount);
         for (uint32 Idx = 0; Idx < IndexCount; Idx++)
         {
-            uint16& Index = Asset.Mesh.Indices.Emplace_GetRef();
+            uint16& Index = Mesh.Indices.Emplace_GetRef();
             GetReader().Serialize(&Index, sizeof(Index));
 
             if (GetReader().IsError())
@@ -140,11 +140,11 @@ namespace LOLImporter
         }
 
         //Vertices
-        Asset.Mesh.Vertices.Empty(VertexCount);
+        Mesh.Vertices.Empty(VertexCount);
 
         for (uint32 Idx = 0; Idx < VertexCount; Idx++) 
         {
-            FLOLVertex& Vertex = Asset.Mesh.Vertices.Emplace_GetRef();
+            FLOLVertex& Vertex = Mesh.Vertices.Emplace_GetRef();
 
             GetReader().Serialize(&Vertex.Position.X, sizeof(Vertex.Position.X));
             GetReader().Serialize(&Vertex.Position.Y, sizeof(Vertex.Position.Y));

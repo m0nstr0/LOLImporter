@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class LOLCoreEditor : ModuleRules
+public class LOLImportWindowEditor : ModuleRules
 {
-	public LOLCoreEditor(ReadOnlyTargetRules Target) : base(Target)
+	public LOLImportWindowEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -26,10 +26,13 @@ public class LOLCoreEditor : ModuleRules
 			new string[]
 			{
 				"Core",
-				"SkeletalMeshUtilitiesCommon",
 				"CoreUObject",
-				"Engine",
-				"UnrealEd"
+				"ApplicationCore",
+				"InputCore",
+                "Slate",
+                "SlateCore",
+				"PropertyEditor",
+				"MainFrame"
 			}
 			);
 			
@@ -37,7 +40,7 @@ public class LOLCoreEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				// ... add private dependencies that you statically link with here ...	
+				
 			}
             );
 

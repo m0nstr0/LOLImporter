@@ -6,7 +6,7 @@
 #include "LOLBaseImportOptions.generated.h"
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
-class ULOLBaseImportOptions : public UObject
+class LOLIMPORTWINDOWEDITOR_API ULOLBaseImportOptions : public UObject
 {
 	GENERATED_BODY()
 	

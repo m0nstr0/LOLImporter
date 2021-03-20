@@ -1,13 +1,13 @@
 #include "Builder/LOLSkeletalMeshBuilder.h"
 #include "LODUtilities.h"
-#include "Utils/LOLConverter.h"
+#include "Util/LOLConverter.h"
 #include "ObjectTools.h"
 #include "IMeshBuilderModule.h"
 #include "Rendering/SkeletalMeshModel.h"
 
 namespace LOLImporter
 {
-	USkeleton* FLOLSkeletalMeshBuilder::CreateSkeleton(const FLOLAsset& Asset, USkeletalMesh* SkeletalMesh)
+	USkeleton* FLOLSkeletalMeshBuilder::CreateSkeleton(const FLOLSkeletalMeshAsset& Asset, USkeletalMesh* SkeletalMesh)
 	{
 		FString BaseName;
 		Asset.Name.ToString(BaseName);
@@ -55,7 +55,7 @@ namespace LOLImporter
 		return Skeleton;
 	}
 
-	void FLOLSkeletalMeshBuilder::FillMeshImportData(const FLOLAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh)
+	void FLOLSkeletalMeshBuilder::FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh)
 	{
 		MeshImportData.bDiffPose = false;
 		MeshImportData.bHasNormals = false;
@@ -137,7 +137,7 @@ namespace LOLImporter
 		SkeletalMesh->ResetLODInfo();
 	}
 
-	bool FLOLSkeletalMeshBuilder::BuildAssets(const FLOLAsset& Asset, TArray<UObject*>& OutAssets)
+	bool FLOLSkeletalMeshBuilder::BuildAssets(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets)
 	{
 		USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(Asset.Parent, Asset.Name, Asset.Flags);
 		SkeletalMesh->PreEditChange(nullptr);

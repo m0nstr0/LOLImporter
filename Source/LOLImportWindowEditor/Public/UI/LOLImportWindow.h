@@ -7,7 +7,7 @@
 
 namespace LOLImporter
 {
-	class SLOLImportWindow : public SCompoundWidget
+	class LOLIMPORTWINDOWEDITOR_API SLOLImportWindow : public SCompoundWidget
 	{
 	private:
 		ULOLBaseImportOptions* ImportOptions;

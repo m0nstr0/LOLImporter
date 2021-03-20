@@ -35,23 +35,11 @@ public class LOLSKNImporterEditor : ModuleRules
 			new string[]
 			{
 				"LOLCoreEditor",
-				"InputCore", //ui
-                "Slate", //ui
-                "SlateCore", //ui
-				"PropertyEditor", //ui
-				"MainFrame", //ui
-				
-				"ApplicationCore",
+				"LOLImportWindowEditor",
 				"CoreUObject",
 				"Engine",
 				"UnrealEd",
-				"DesktopPlatform",
-				"EditorStyle",
-				"MeshDescription",
-				"StaticMeshDescription",
-				"AssetRegistry",
-				"MeshBuilder"
-				// ... add private dependencies that you statically link with here ...	
+				"AssetRegistry"
 			}
             );
 

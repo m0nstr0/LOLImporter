@@ -4,17 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Reader/LOLReader.h"
-#include "Types/LOLAsset.h"
+#include "Type/LOLSkeleton.h"
 
 namespace LOLImporter
 {
 	class LOLCOREEDITOR_API FLOLSKLReader : public FLOLReader
 	{
+	private:
+		bool ReadNew(FLOLSkeleton& Skeleton);
+		bool ReadLegacy(FLOLSkeleton& Skeleton, uint32 Version);
 	public:
 		FLOLSKLReader(const TArray<uint8>& InData) : FLOLReader::FLOLReader(InData) {};
 		~FLOLSKLReader() {};
-		bool ReadNew(FLOLAsset& Asset);
-		bool ReadLegacy(FLOLAsset& Asset, uint32 Version);
-		bool Read(FLOLAsset& Asset) override;
+		bool Read(FLOLSkeleton& Skeleton);
 	};
 }

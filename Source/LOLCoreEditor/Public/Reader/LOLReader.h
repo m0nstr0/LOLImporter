@@ -1,8 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Types/LOLLogger.h"
-#include "Types/LOLAsset.h"
+#include "Type/LOLLogger.h"
 #include "Serialization/MemoryReader.h"
 
 namespace LOLImporter
@@ -15,6 +14,5 @@ namespace LOLImporter
         FLOLReader(const TArray<uint8>& InData) : Reader(InData) {}
         virtual ~FLOLReader() {}
         FMemoryReader& GetReader() { return Reader; }
-        virtual bool Read(FLOLAsset& Asset) = 0;
     };
 }

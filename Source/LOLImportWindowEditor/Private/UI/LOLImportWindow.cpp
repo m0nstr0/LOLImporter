@@ -3,6 +3,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FLOLImportWindow"
 

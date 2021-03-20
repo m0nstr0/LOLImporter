@@ -1,39 +1,39 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-#include "Factory/LOLSKNImportFactory.h"
+#include "Factory/LOLANMImportFactory.h"
 #include "Misc/FeedbackContext.h"
 
 #include "UI/LOLImportWindow.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Factory/LOLSkeletalMeshReaderFactory.h"
-#include "Builder/LOLSkeletalMeshBuilder.h"
+#include "Type/LOLAnimationAsset.h"
+#include "Builder/LOLAnimationBuilder.h"
+#include "Factory/LOLAnimationReaderFactory.h"
 
-#define LOCTEXT_NAMESPACE "FLOLSKNImporterEditorModule"
+#define LOCTEXT_NAMESPACE "FLOLANMImporterEditorModule"
 
-ULOLSKNImportFactory::ULOLSKNImportFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+ULOLANMImportFactory::ULOLANMImportFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bCreateNew = false;
 	bEditAfterNew = false;
 	bEditorImport = true;
 	bText = false;
-	SupportedClass = USkeletalMesh::StaticClass();
+	SupportedClass = UAnimSequence::StaticClass();
 
-	Formats.Add(TEXT("skn;League Of Legends Animated Model"));
+	Formats.Add(TEXT("anm;League Of Legends Animation File"));
 }
 
-void ULOLSKNImportFactory::PostInitProperties()
+void ULOLANMImportFactory::PostInitProperties()
 {
 	Super::PostInitProperties();
-	ImportOptions = NewObject<ULOLSKNImportOptions>(this, NAME_None, RF_NoFlags);
+	ImportOptions = NewObject<ULOLANMImportOptions>(this, NAME_None, RF_NoFlags);
 }
 
 
-bool ULOLSKNImportFactory::DoesSupportClass(UClass* Class)
+bool ULOLANMImportFactory::DoesSupportClass(UClass* Class)
 {
-	return Class == USkeletalMesh::StaticClass();
+	return Class == UAnimSequence::StaticClass();
 }
 
 
-UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename,
+UObject* ULOLANMImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename,
 	const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Parms);
@@ -47,17 +47,16 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 		return nullptr;
 	}
-
-	LOLImporter::FLOLSkeletalMeshAsset Asset(InParent, InName, Flags);
-	if (!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, Filename) ||
-		!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, ImportOptions->SkeletonFilePath.FilePath)) 
+	
+	LOLImporter::FLOLAnimationAsset Asset(InParent, InName, Flags, ImportOptions->SkeletonForAnimation);
+	if (!LOLImporter::LOLAnimationReaderFactory::Read(Warn, Asset, Filename))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 		return nullptr;
 	}
 
 	TArray<UObject*> Objects;
-	if (!LOLImporter::FLOLSkeletalMeshBuilder().BuildAssets(Asset, Objects) || Objects.Num() == 0)
+	if (!LOLImporter::FLOLAnimationBuilder().BuildAssets(Asset, Objects) || Objects.Num() == 0)
 	{
 		Warn->Log(ELogVerbosity::Error, "Error importing file");
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
@@ -80,9 +79,9 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	return Objects[0];
 }
 
-UClass* ULOLSKNImportFactory::ResolveSupportedClass()
+UClass* ULOLANMImportFactory::ResolveSupportedClass()
 {
-	return USkeletalMesh::StaticClass();
+	return UAnimSequence::StaticClass();
 }
 
 #undef LOCTEXT_NAMESPACE

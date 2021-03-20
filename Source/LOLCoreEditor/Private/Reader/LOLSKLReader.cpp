@@ -5,7 +5,7 @@
 
 namespace LOLImporter
 {
-    bool FLOLSKLReader::ReadNew(FLOLAsset& Asset)
+    bool FLOLSKLReader::ReadNew(FLOLSkeleton& Skeleton)
     {
         uint16 Flags;
         GetReader().Serialize(&Flags, sizeof(Flags));
@@ -40,8 +40,8 @@ namespace LOLImporter
         GetReader().Seek(JointOffset);
 
         bool IsHasRoot = false;
-        Asset.Skeleton.IsMultiRoot = false;
-        Asset.Skeleton.Joints.Empty(JointCount);
+        Skeleton.IsMultiRoot = false;
+        Skeleton.Joints.Empty(JointCount);
 
         for (uint16 i = 0; i < JointCount; i++)
         {
@@ -50,7 +50,7 @@ namespace LOLImporter
             float GlobalTransform[10];
             int32 NameOffset;
 
-            FLOLJoint& Joint = Asset.Skeleton.Joints.Emplace_GetRef();
+            FLOLJoint& Joint = Skeleton.Joints.Emplace_GetRef();
 
             GetReader().Serialize(&Padding, sizeof(Padding));
             GetReader().Serialize(&Joint.ID, sizeof(Joint.ID));
@@ -86,7 +86,7 @@ namespace LOLImporter
 
             if (Joint.ParentID == -1 && IsHasRoot)
             {
-                Asset.Skeleton.IsMultiRoot = true;
+                Skeleton.IsMultiRoot = true;
             }
 
             int64 ReturnPosition = GetReader().Tell();
@@ -122,11 +122,11 @@ namespace LOLImporter
 
         GetReader().Seek(InfluencesOffset);
 
-        Asset.Skeleton.JointInfluences.Empty(InfluencesCount);
+        Skeleton.JointInfluences.Empty(InfluencesCount);
 
         for (uint32 i = 0; i < InfluencesCount; i++) 
         {
-            uint16& Influence = Asset.Skeleton.JointInfluences.Emplace_GetRef();
+            uint16& Influence = Skeleton.JointInfluences.Emplace_GetRef();
             GetReader().Serialize(&Influence, sizeof(Influence));
 
             if (GetReader().IsError())
@@ -139,7 +139,7 @@ namespace LOLImporter
         return true;
     }
 
-    bool FLOLSKLReader::ReadLegacy(FLOLAsset& Asset, uint32 Version)
+    bool FLOLSKLReader::ReadLegacy(FLOLSkeleton& Skeleton, uint32 Version)
     {
         uint32 SkeletonID = 0;
         GetReader().Serialize(&SkeletonID, sizeof(SkeletonID));
@@ -153,10 +153,10 @@ namespace LOLImporter
             return false;
         }
 
-        Asset.Skeleton.Joints.Empty(JointCount);
+        Skeleton.Joints.Empty(JointCount);
         for (uint32 Idx = 0; Idx < JointCount; Idx++)
         {
-            FLOLJoint& Joint = Asset.Skeleton.Joints.Emplace_GetRef();
+            FLOLJoint& Joint = Skeleton.Joints.Emplace_GetRef();
 
             Joint.ID = Idx;
 
@@ -219,7 +219,7 @@ namespace LOLImporter
 
             GetReader().Serialize(&InfluencesCount, sizeof(InfluencesCount));
 
-            Asset.Skeleton.JointInfluences.Empty(InfluencesCount);
+            Skeleton.JointInfluences.Empty(InfluencesCount);
             for (uint32 i = 0; i < InfluencesCount; i++)
             {
                 uint32 Influence;
@@ -231,23 +231,23 @@ namespace LOLImporter
                     return false;
                 }
 
-                Asset.Skeleton.JointInfluences.Add(Influence);
+                Skeleton.JointInfluences.Add(Influence);
             }
         }
 
         if (Version == 1)
         {
-            Asset.Skeleton.JointInfluences.Empty(JointCount);
+            Skeleton.JointInfluences.Empty(JointCount);
             for (uint32 Idx = 0; Idx < JointCount; Idx++)
             {
-                Asset.Skeleton.JointInfluences.Add(Idx);
+                Skeleton.JointInfluences.Add(Idx);
             }
         }
 
         return true;
     }
 
-	bool FLOLSKLReader::Read(FLOLAsset& Asset)
+	bool FLOLSKLReader::Read(FLOLSkeleton& Skeleton)
 	{
         uint32 Magic = 0;
         uint32 Magic2 = 0;
@@ -285,9 +285,9 @@ namespace LOLImporter
         
         if (IsLegacy)
         {
-            return ReadLegacy(Asset, Version);
+            return ReadLegacy(Skeleton, Version);
         }
 
-        return ReadNew(Asset);
+        return ReadNew(Skeleton);
 	}
 }

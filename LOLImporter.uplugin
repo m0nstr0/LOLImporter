@@ -21,6 +21,16 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "LOLImportWindowEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LOLANMImporterEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "LOLSKNImporterEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
