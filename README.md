@@ -3,27 +3,27 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 
 ## Supports
 
-### Animation Files:
+### Animation Files (*.anm)
 
-    [*] Compressed
-        [*] Version 1
-    [] Uncompressed
-        [*] Version 5
-        [] Version 4
-        [*] Version 3
+- [ ] Compressed
+    - [x] Version 1
+- [ ] Uncompressed
+    - [X] Version 5
+    - [ ] Version 4
+    - [X] Version 3
 
-### Skeleton
+### Skeleton (*.skl)
 
-    [*] Legacy
-       [*] Version 1
-       [*] Version 2
-    [*] New Format
-       [*] Version 0
+- [X] Legacy
+  - [X] Version 1
+  - [X] Version 2
+- [X] New Format
+  - [X] Version 0
 
-### Skin
+### Skin (*.skn)
 
-    [*] Version 0
-    [*] Version 2
-    [*] Version 4
+- [X] Version 0
+- [X] Version 2
+- [X] Version 4
 
 
