@@ -5,7 +5,7 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 
 ### Animation Files (*.anm)
 
-- [ ] Compressed
+- [X] Compressed
     - [x] Version 1
 - [ ] Uncompressed
     - [X] Version 5
