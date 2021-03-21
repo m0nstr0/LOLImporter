@@ -23,7 +23,9 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 ### Skin (*.skn)
 
 - [X] Version 0
-- [X] Version 2
+- [X] Version 1
+- [X] Version 2 (Same as Version 1)
+- [X] Version 3 (Same as Version 1)
 - [X] Version 4
 
 

@@ -30,7 +30,7 @@ namespace LOLImporter
 
         AddLogInfoMessage(FString::Printf(TEXT("[FLOLSKNReader]: File version: %u"), Version));
 
-        if (GetReader().IsError() || (Version != 0x00010000 && Version != 0x00010002 && Version != 0x00010004))
+        if (GetReader().IsError() || (Version != 0x00010000 && Version != 0x00010001 && Version != 0x00010002 && Version != 0x00010003 && Version != 0x00010004))
         {
             AddLogErrorMessage("[FLOLSKNReader] Unsupported file version detected"); 
             return false;
