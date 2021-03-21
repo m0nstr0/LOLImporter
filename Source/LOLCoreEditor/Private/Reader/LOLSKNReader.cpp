@@ -4,36 +4,40 @@ namespace LOLImporter
 {
     bool FLOLSKNReader::Read(FLOLMesh& Mesh)
     {
+        AddLogInfoMessage("[FLOLSKNReader]: Starting file parsing");
+
         uint32 Magic = 0;
-        uint16 MajorVersion = 0;
-        uint16 MinorVersion = 0;
+        uint32 Version = 0;
         uint32 IndexCount = 0;
         uint32 VertexCount = 0;
         uint32 VertexType = 0;
-        uint32 VertexSize = 0;
         uint32 SubMeshCount = 0;
 
         //Magic
         GetReader().Serialize(&Magic, sizeof(Magic));
 
+		AddLogInfoMessage(FString::Printf(TEXT("[FLOLSKNReader]: File magic: %u"), Magic));
+
+
         if (Magic != 0x00112233 && !GetReader().IsError())
         {
-            AddLogErrorMessage("File format or file extension is not valid");
+            AddLogErrorMessage("[FLOLSKNReader] File format or file extension is not valid");
             return false;
         }
 
         //Version
-        GetReader().Serialize(&MajorVersion, sizeof(MajorVersion));
-        GetReader().Serialize(&MinorVersion, sizeof(MinorVersion));
+        GetReader().Serialize(&Version, sizeof(Version));
 
-        if (GetReader().IsError() || (MajorVersion != 0 && MajorVersion != 2 && MajorVersion != 4 && MinorVersion != 1))
+        AddLogInfoMessage(FString::Printf(TEXT("[FLOLSKNReader]: File version: %u"), Version));
+
+        if (GetReader().IsError() || (Version != 0x00010000 && Version != 0x00010002 && Version != 0x00010004))
         {
-            AddLogErrorMessage("Unsupported file version detected"); 
+            AddLogErrorMessage("[FLOLSKNReader] Unsupported file version detected"); 
             return false;
         }
         
         //SubMeshes
-        if (MajorVersion == 0)
+        if (Version == 0x00010000)
         {
             FLOLSubMesh& SubMesh = Mesh.SubMeshes.Emplace_GetRef();
 
@@ -45,13 +49,13 @@ namespace LOLImporter
             SubMesh.VertexCount = VertexCount;
         }
         
-        if (MajorVersion != 0)
+        if (Version != 0x00010000)
         {
             GetReader().Serialize(&SubMeshCount, sizeof(SubMeshCount));
 
             if (SubMeshCount == 0)
             {
-                AddLogErrorMessage("File has 0 submeshes");
+                AddLogErrorMessage("[FLOLSKNReader] File has 0 submeshes");
                 return false;
             }
 
@@ -70,13 +74,13 @@ namespace LOLImporter
 
                 if (GetReader().IsError())
                 {
-                    AddLogErrorMessage("File format is not valid");
+                    AddLogErrorMessage("[FLOLSKNReader] File format is not valid");
                     return false;
                 }
 
                 if (SubMesh.VertexCount == 0 || SubMesh.IndexCount == 0)
                 {
-                    AddLogErrorMessage("Submesh has 0 Vertices or 0 Indices");
+                    AddLogErrorMessage("[FLOLSKNReader] Submesh has 0 Vertices or 0 Indices");
                     return false;
                 }
 
@@ -92,36 +96,33 @@ namespace LOLImporter
             }
         }
 
-        if (MajorVersion == 4)
+        if (Version == 0x00010004)
         {
-            uint32 Flags;
-            GetReader().Serialize(&Flags, sizeof(Flags));
+			GetReader().Seek(GetReader().Tell() + 4);
         }
 
-        if (MajorVersion != 0)
+        if (Version != 0x00010000)
         {
             GetReader().Serialize(&IndexCount, sizeof(IndexCount));
             GetReader().Serialize(&VertexCount, sizeof(VertexCount));
         }
 
-        if (MajorVersion == 4)
+        if (Version == 0x00010004)
         {
-            GetReader().Serialize(&VertexSize, sizeof(VertexSize));
+            GetReader().Seek(GetReader().Tell() + 4);
             GetReader().Serialize(&VertexType, sizeof(VertexType));
-
-            uint8 BBOX[40];
-            GetReader().Serialize(BBOX, sizeof(BBOX));
+			GetReader().Seek(GetReader().Tell() + 40);
         }
 
         if (GetReader().IsError())
         {
-            AddLogErrorMessage("File format is not valid");
+            AddLogErrorMessage("[FLOLSKNReader] File format is not valid");
             return false;
         }
 
         if (IndexCount == 0 || VertexCount == 0)
         {
-            AddLogErrorMessage("File has 0 Vertices or 0 Indices");
+            AddLogErrorMessage("[FLOLSKNReader] File has 0 Vertices or 0 Indices");
             return false;
         }
 
@@ -134,7 +135,7 @@ namespace LOLImporter
 
             if (GetReader().IsError())
             {
-                AddLogErrorMessage("File format is not valid");
+                AddLogErrorMessage("[FLOLSKNReader] File format is not valid");
                 return false;
             }
         }
@@ -162,16 +163,17 @@ namespace LOLImporter
 
             if (VertexType == 56) 
             {
-                uint8 Color[4];
-                GetReader().Serialize(Color, sizeof(Color));
+				GetReader().Seek(GetReader().Tell() + 4);
             }
 
             if (GetReader().IsError())
             {
-                AddLogErrorMessage("File format is not valid");
+                AddLogErrorMessage("[FLOLSKNReader] File format is not valid");
                 return false;
             }
         }
+
+		AddLogInfoMessage("[FLOLSKNReader]: End file parsing");
 
         return true;
     }

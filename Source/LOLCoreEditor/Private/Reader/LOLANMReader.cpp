@@ -2,6 +2,7 @@
 
 
 #include "Reader/LOLANMReader.h"
+#include "Util/LOLConverter.h"
 
 namespace LOLImporter
 {
@@ -37,17 +38,188 @@ namespace LOLImporter
 		}
 	}
 
+	bool FLOLANMReader::ReadV3(FLOLAnimation& Animation)
+	{
+		GetReader().Seek(GetReader().Tell() + 4);
+
+		int32 JointCount;
+		GetReader().Serialize(&JointCount, sizeof(JointCount));
+
+		int32 FramesCount;
+		GetReader().Serialize(&FramesCount, sizeof(FramesCount));
+
+		int32 FPS = 0;
+		GetReader().Serialize(&FPS, sizeof(FPS));
+
+		if (GetReader().IsError() || FramesCount <= 0 || JointCount <= 0 || FPS <= 0)
+		{
+			return false;
+		}
+
+		Animation.Duration = 1.0f / FPS * FramesCount;
+		Animation.JointHashes.Empty(JointCount);
+
+
+		for (int32 JointID = 0; JointID < JointCount; JointID++)
+		{
+			uint8 Name[32];
+			GetReader().Serialize(Name, sizeof(Name));
+			GetReader().Seek(GetReader().Tell() + 4);
+			if (GetReader().IsError()) {
+				return false;
+			}
+
+			FString JointName = "";
+			for (uint8 j = 0; j < 32; j++) {
+				if (Name[j] == '\0') {
+					break;
+				}
+				JointName.AppendChar(TCHAR(Name[j]));
+			}
+			Animation.JointHashes.Add(FLOLConverter::ElfHash(JointName));
+
+			for (int32 FrameID = 0; FrameID < FramesCount; FrameID++)
+			{
+				FLOLAnimationTransform& AnimationTransform = Animation.GetFrameTransform(FrameID, JointID);
+				FVector Translation;
+				FQuat Rotation;
+				
+				GetReader().Serialize(&Rotation.X, sizeof(Rotation.X));
+				GetReader().Serialize(&Rotation.Y, sizeof(Rotation.Y));
+				GetReader().Serialize(&Rotation.Z, sizeof(Rotation.Z));
+				GetReader().Serialize(&Rotation.W, sizeof(Rotation.W));
+
+				GetReader().Serialize(&Translation.X, sizeof(Translation.X));
+				GetReader().Serialize(&Translation.Y, sizeof(Translation.Y));
+				GetReader().Serialize(&Translation.Z, sizeof(Translation.Z));
+
+				if (GetReader().IsError()) {
+					return false;
+				}
+
+				AnimationTransform.SetScale(FVector(1.f));
+				AnimationTransform.SetRotation(Rotation);
+				AnimationTransform.SetTranslation(Translation);
+			}
+		}
+
+		return true;
+	}
+
+	bool FLOLANMReader::ReadV5(FLOLAnimation& Animation)
+	{
+		GetReader().Seek(GetReader().Tell() + 16);
+
+		int32 JointCount;
+		GetReader().Serialize(&JointCount, sizeof(JointCount));
+
+		int32 FramesCount;
+		GetReader().Serialize(&FramesCount, sizeof(FramesCount));
+
+		float FrameDuration;
+		GetReader().Serialize(&FrameDuration, sizeof(FrameDuration));
+
+		int32 JointHashesOffset;
+		GetReader().Serialize(&JointHashesOffset, sizeof(JointHashesOffset));
+
+		GetReader().Seek(GetReader().Tell() + 8);
+
+		int32 TranslationsOffset;
+		GetReader().Serialize(&TranslationsOffset, sizeof(TranslationsOffset));
+
+		int32 RotationsOffset;
+		GetReader().Serialize(&RotationsOffset, sizeof(RotationsOffset));
+
+		int32 FramesOffset;
+		GetReader().Serialize(&FramesOffset, sizeof(FramesOffset));
+
+		if (GetReader().IsError() || FramesOffset <= 0 || RotationsOffset <= 0 || TranslationsOffset <= 0 || JointHashesOffset <= 0 || JointCount <= 0)
+		{
+			return false;
+		}
+
+		Animation.Duration = FramesCount * FrameDuration;
+
+		//Joints
+		GetReader().Seek(JointHashesOffset + 12);
+		const int32 JOINT_HASHES_COUNT = (FramesOffset - JointHashesOffset) / 4;
+		Animation.JointHashes.AddDefaulted(JOINT_HASHES_COUNT);
+		for (int32 Idx = 0; Idx < JOINT_HASHES_COUNT; Idx++)
+		{
+			GetReader().Serialize(&Animation.JointHashes[Idx], sizeof(Animation.JointHashes[Idx]));
+
+			if (GetReader().IsError())
+			{
+				return false;
+			}
+		}
+
+		//Translations
+		GetReader().Seek(TranslationsOffset + 12);
+		const int32 TRANSLATIONS_COUNT = (RotationsOffset - TranslationsOffset) / 12;
+		TArray<FVector> Translations;
+		Translations.AddDefaulted(TRANSLATIONS_COUNT);
+		for (int32 Idx = 0; Idx < TRANSLATIONS_COUNT; Idx++)
+		{
+			GetReader().Serialize(&Translations[Idx].X, sizeof(Translations[Idx].X));
+			GetReader().Serialize(&Translations[Idx].Y, sizeof(Translations[Idx].Y));
+			GetReader().Serialize(&Translations[Idx].Z, sizeof(Translations[Idx].Z));
+
+			if (GetReader().IsError())
+			{
+				return false;
+			}		
+		}
+		
+		//Rotations
+		const int32 ROTATIONS_COUNT = (JointHashesOffset - RotationsOffset) / 6;
+		GetReader().Seek(RotationsOffset + 12);
+		TArray<FQuat> Rotations;
+		Rotations.AddDefaulted(ROTATIONS_COUNT);
+		for (int32 Idx = 0; Idx < ROTATIONS_COUNT; Idx++)
+		{
+			uint8 CompressedRotation[6];
+			GetReader().Serialize(CompressedRotation, sizeof(CompressedRotation));
+
+			if (GetReader().IsError())
+			{
+				return false;
+			}
+
+			Rotations[Idx] = DecompressQuantizedQuaternion(CompressedRotation);		
+		}
+
+		//Frames
+		GetReader().Seek(FramesOffset + 12);
+		for (int32 FrameIdx = 0; FrameIdx < FramesCount; FrameIdx++)
+		{
+			for (int32 JoinIdx = 0; JoinIdx < JointCount; JoinIdx++)
+			{
+				uint16 TranslationIdx;
+				uint16 ScaleIdx;
+				uint16 RotationIdx;
+				GetReader().Serialize(&TranslationIdx, sizeof(TranslationIdx));
+				GetReader().Serialize(&ScaleIdx, sizeof(ScaleIdx));
+				GetReader().Serialize(&RotationIdx, sizeof(RotationIdx));
+
+				if (GetReader().IsError())
+				{
+					return false;
+				}
+
+				FLOLAnimationTransform& JointTransform = Animation.GetFrameTransform(FrameIdx, JoinIdx);
+				JointTransform.SetTranslation(Translations[TranslationIdx]);
+				JointTransform.SetScale(Translations[ScaleIdx]);
+				JointTransform.SetRotation(Rotations[RotationIdx]);
+			}
+		}
+
+		return true;
+	}
 
 	bool FLOLANMReader::ReadCompressed(FLOLAnimation& Animation)
-	{
-		uint32 ResourceSize = 0;
-		GetReader().Serialize(&ResourceSize, sizeof(ResourceSize));
-
-		uint32 FormatToken = 0;
-		GetReader().Serialize(&FormatToken, sizeof(FormatToken));
-
-		uint32 Flags = 0;
-		GetReader().Serialize(&Flags, sizeof(Flags));
+	{	
+		GetReader().Seek(GetReader().Tell() + 12);
 
 		int32 JointCount = 0;
 		GetReader().Serialize(&JointCount, sizeof(JointCount));
@@ -64,8 +236,7 @@ namespace LOLImporter
 		float FPS = 0;
 		GetReader().Serialize(&FPS, sizeof(FPS));
 
-		float TransformQuantizationProperties[6];
-		GetReader().Serialize(TransformQuantizationProperties, sizeof(TransformQuantizationProperties));
+		GetReader().Seek(GetReader().Tell() + 24);
 
 		FVector TranslationMin;
 		GetReader().Serialize(&TranslationMin, sizeof(TranslationMin));
@@ -113,9 +284,9 @@ namespace LOLImporter
 
 		GetReader().Seek(FramesOffset + 12);
 
-		const uint8 RotationTransformType = 0;
-		const uint8 TranslationTransformType = 1;
-		const uint8 ScaleTransformType = 2;
+		const uint8 ROTATION_TRANSFORM_TYPE = 0;
+		const uint8 TRANSLATION_TRANSFORM_TYPE = 1;
+		const uint8 SCALE_TRANSFORM_TYPE = 2;
 
 		int32 MaxFrames = 0;
 		for (int32 i = 0; i < FrameCount; i++)
@@ -135,13 +306,13 @@ namespace LOLImporter
 			FLOLAnimationTransform& JointTransform = Animation.GetFrameTransform(CompressedTime, JointHashIndex);
 			switch (TransformType)
 			{
-			case RotationTransformType:
+			case ROTATION_TRANSFORM_TYPE:
 				JointTransform.SetRotation(DecompressQuantizedQuaternion(CompressedTransform));
 				break;
-			case TranslationTransformType:
+			case TRANSLATION_TRANSFORM_TYPE:
 				JointTransform.SetTranslation(DecompressVector(TranslationMin, TranslationMax, CompressedTransform));
 				break;
-			case ScaleTransformType:
+			case SCALE_TRANSFORM_TYPE:
 				JointTransform.SetScale(DecompressVector(ScaleMin, ScaleMax, CompressedTransform));
 				break;
 			default:
@@ -178,18 +349,13 @@ namespace LOLImporter
 
 		if (Magic == 0x646d6e6132643372) //uncompressed
 		{
-			/*if (version == 5)
-			{
-				ReadV5(br);
+			if (Version == 5) {
+				return ReadV5(Animation);
 			}
-			else if (version == 4)
-			{
-				ReadV4(br);
+
+			if (Version == 3) {
+				return ReadV3(Animation);
 			}
-			else
-			{
-				ReadLegacy(br);
-			}*/
 		}
 
 		return false;

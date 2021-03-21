@@ -136,88 +136,106 @@ namespace LOLImporter
             }
         }
 
+		AddLogInfoMessage("[FLOLSKNReader]: End file parsing");
+
         return true;
     }
 
     bool FLOLSKLReader::ReadLegacy(FLOLSkeleton& Skeleton, uint32 Version)
     {
-        uint32 SkeletonID = 0;
-        GetReader().Serialize(&SkeletonID, sizeof(SkeletonID));
+        GetReader().Seek(GetReader().Tell() + 4);
 
         uint32 JointCount = 0;
         GetReader().Serialize(&JointCount, sizeof(JointCount));
 
         if (JointCount == 0)
         {
-            AddLogErrorMessage("File has 0 joints");
+            AddLogErrorMessage("[FLOLSKLReader]: File has 0 joints");
             return false;
         }
 
+		bool IsHasRoot = false;
+		Skeleton.IsMultiRoot = false;
         Skeleton.Joints.Empty(JointCount);
+        TMap<uint32, FMatrix> BoneToGlobalMatrix;
+
         for (uint32 Idx = 0; Idx < JointCount; Idx++)
         {
             FLOLJoint& Joint = Skeleton.Joints.Emplace_GetRef();
 
-            Joint.ID = Idx;
+            uint8 Name[32];
+			GetReader().Serialize(Name, sizeof(Name));
 
-            //Name
-            while (true)
-            {
-                char Letter;
-                GetReader().Serialize(&Letter, sizeof(Letter));
-
-                if (GetReader().IsError())
-                {
-                    AddLogErrorMessage("File format is not valid");
-                    return false;
-                }
-
-                if (Letter == '\0') 
-                { 
-                    break;
-                };
-
-                Joint.Name.AppendChar(TCHAR(Letter));
-            }
+            for (uint8 j = 0; j < 32; j++) {
+				if (Name[j] == '\0') {
+					break;
+				}
+                Joint.Name.AppendChar(TCHAR(Name[j]));
+			}
 
             int32 ParentID;
             GetReader().Serialize(&ParentID, sizeof(ParentID));
+
+            Joint.ID = Idx;
             Joint.ParentID = ParentID;
+
+			if (Joint.ParentID == -1 && !IsHasRoot) {
+				IsHasRoot = true;
+			}
+
+			if (Joint.ParentID == -1 && IsHasRoot) {
+				Skeleton.IsMultiRoot = true;
+			}
 
             float Scale;
             GetReader().Serialize(&Scale, sizeof(Scale));
 
             FMatrix Matrix = FMatrix::Identity;
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 4; j++)
-                {
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 4; j++) {
                     GetReader().Serialize(&Matrix.M[j][i], sizeof(float));
                 }
             }
 
-            FTransform Transform(Matrix);
-            Joint.LocalTranslation = Transform.GetTranslation();
-            Joint.LocalRotation = Transform.GetRotation();
+            Matrix.ApplyScale(Scale);
+            BoneToGlobalMatrix.Add(Idx, Matrix);
 
             if (GetReader().IsError())
             {
-                AddLogErrorMessage("File format is not valid");
+                AddLogErrorMessage("[FLOLSKLReader]: File format is not valid");
                 return false;
             }
         }
 
+		for(FLOLJoint& Joint : Skeleton.Joints)
+		{
+			if (Joint.ParentID == -1)
+			{
+				FTransform Transform(BoneToGlobalMatrix[Joint.ID]);
+				Joint.LocalTranslation = Transform.GetTranslation();
+				Joint.LocalRotation = Transform.GetRotation();
+				Joint.LocalScale = Transform.GetScale3D();
+			}
+			else
+			{
+				FTransform Transform(BoneToGlobalMatrix[Joint.ID] * BoneToGlobalMatrix[Joint.ParentID].Inverse());
+				Joint.LocalTranslation = Transform.GetTranslation();
+				Joint.LocalRotation = Transform.GetRotation();
+				Joint.LocalScale = Transform.GetScale3D();
+			}
+		}
+
+
         if (Version == 2)
         {
             uint32 InfluencesCount = 0;
+			GetReader().Serialize(&InfluencesCount, sizeof(InfluencesCount));
 
             if (InfluencesCount == 0)
             {
-                AddLogErrorMessage("File has 0 influences");
+                AddLogErrorMessage("[FLOLSKLReader]: File has 0 influences");
                 return false;
             }
-
-            GetReader().Serialize(&InfluencesCount, sizeof(InfluencesCount));
 
             Skeleton.JointInfluences.Empty(InfluencesCount);
             for (uint32 i = 0; i < InfluencesCount; i++)
@@ -227,7 +245,7 @@ namespace LOLImporter
 
                 if (GetReader().IsError())
                 {
-                    AddLogErrorMessage("File format is not valid");
+                    AddLogErrorMessage("[FLOLSKLReader]: File format is not valid");
                     return false;
                 }
 
@@ -244,11 +262,15 @@ namespace LOLImporter
             }
         }
 
+		AddLogInfoMessage("[FLOLSKLReader]: End file parsing");
+
         return true;
     }
 
 	bool FLOLSKLReader::Read(FLOLSkeleton& Skeleton)
 	{
+		AddLogInfoMessage("[FLOLSKLReader]: Starting file parsing");
+
         uint32 Magic = 0;
         uint32 Magic2 = 0;
         uint32 Version = 0;
@@ -258,28 +280,39 @@ namespace LOLImporter
         GetReader().Serialize(&Magic, sizeof(Magic));
         GetReader().Serialize(&Magic2, sizeof(Magic2));
 
-        if (Magic == 0x72336432 && Magic2 == 0x736B6C74)
+        if (Magic == 0x32643372 && Magic2 == 0x746C6B73)
         {
+			AddLogInfoMessage("[FLOLSKLReader]: File magic: 8389198348395230066");
+			AddLogInfoMessage("[FLOLSKLReader]: File is legacy");
+
             IsLegacy = true;
         }
         else if (Magic2 != 0x22FD4FC3)
         {
-            AddLogErrorMessage("File format or file extension is not valid");
+            AddLogInfoMessage(FString::Printf(TEXT("[FLOLSKLReader]: File magic: %u %u"), Magic, Magic2));
+            AddLogErrorMessage("[FLOLSKLReader] File format or file extension is not valid");
             return false;
+        }
+        else
+        {
+			AddLogInfoMessage("[FLOLSKLReader]: File magic: 587026371");
+            AddLogInfoMessage("[FLOLSKLReader]: File isn't legacy");
         }
 
         //Version
         GetReader().Serialize(&Version, sizeof(Version));
 
+		AddLogInfoMessage(FString::Printf(TEXT("[FLOLSKLReader]: File version: %u"), Version));
+
         if (GetReader().IsError() || (!IsLegacy && Version != 0))
         {
-            AddLogErrorMessage("Unsupported file version detected");
+            AddLogErrorMessage("[FLOLSKLReader] Unsupported file version detected");
             return false;
         }
 
         if (IsLegacy && Version != 1 && Version != 2)
         {
-            AddLogErrorMessage("Unsupported file version detected");
+            AddLogErrorMessage("[FLOLSKLReader] Unsupported file version detected");
             return false;
         }     
         

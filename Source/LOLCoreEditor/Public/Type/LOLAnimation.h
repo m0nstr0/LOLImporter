@@ -19,6 +19,7 @@ namespace LOLImporter
 		{
 			HasRotation = true;
 			Rotation = InRotation;
+			Rotation.Normalize();
 		}
 
 		void SetTranslation(FVector InTranslation)
