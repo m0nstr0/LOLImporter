@@ -1,6 +1,10 @@
 # LOLImporter
 League Of Legends UE4 Importer Plugin (Alpha Version)
 
+## How-To
+
+[<img src="https://img.youtube.com/vi/7enIAG60yis/maxresdefault.jpg" width="50%">](https://youtu.be/7enIAG60yis)
+
 ## Supports
 
 ### Animation Files (*.anm)
