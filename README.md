@@ -3,7 +3,9 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 
 ## How-To
 
-[<img src="https://img.youtube.com/vi/7enIAG60yis/maxresdefault.jpg" width="50%">](https://youtu.be/7enIAG60yis)
+<p align="center">
+    <a href="https://youtu.be/7enIAG60yis"><img src="https://img.youtube.com/vi/7enIAG60yis/maxresdefault.jpg" width="50%"></a>
+</p>
 
 ## Supports
 
