@@ -7,9 +7,9 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 
 - [X] Compressed
     - [x] Version 1
-- [ ] Uncompressed
+- [X] Uncompressed
     - [X] Version 5
-    - [ ] Version 4
+    - [X] Version 4
     - [X] Version 3
 
 ### Skeleton (*.skl)
@@ -28,4 +28,13 @@ League Of Legends UE4 Importer Plugin (Alpha Version)
 - [X] Version 3 (Same as Version 1)
 - [X] Version 4
 
+### Static (*.scb, *.sco)
 
+- [ ] SCB
+- [ ] SCO
+
+### World (*.wgeo, *.nvr, *.mapgeo)
+
+- [ ] MAPGEO
+- [ ] WGEO
+- [ ] NVR
