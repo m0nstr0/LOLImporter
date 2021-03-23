@@ -161,7 +161,7 @@ namespace LOLImporter
             GetReader().Serialize(&Vertex.TexCoord.X, sizeof(Vertex.TexCoord.X));
             GetReader().Serialize(&Vertex.TexCoord.Y, sizeof(Vertex.TexCoord.Y));
 
-            if (VertexType == 56) 
+            if (VertexType == 1) 
             {
 				GetReader().Seek(GetReader().Tell() + 4);
             }
