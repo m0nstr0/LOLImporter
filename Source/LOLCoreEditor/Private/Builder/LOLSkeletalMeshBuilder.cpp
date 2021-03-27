@@ -4,15 +4,22 @@
 #include "ObjectTools.h"
 #include "IMeshBuilderModule.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "PackageTools.h"
 
 namespace LOLImporter
 {
 	USkeleton* FLOLSkeletalMeshBuilder::CreateSkeleton(const FLOLSkeletalMeshAsset& Asset)
 	{
-		FString BaseName = Asset.Name.ToString();
-		FName SkeletonName = *(ObjectTools::SanitizeObjectName(FString::Printf(TEXT("%s_Skeleton"), *BaseName)));
+		FString ParentPackageName = Asset.Parent->GetPathName();
+		ParentPackageName = UPackageTools::SanitizePackageName(ParentPackageName + ObjectTools::SanitizeObjectName(TEXT("_Skeleton")));
+		FName AssetName = *(FPaths::GetBaseFilename(ParentPackageName));
+		UObject* ParentPackage = CreatePackage(*ParentPackageName);
 
-		return NewObject<USkeleton>(Asset.Parent, SkeletonName, Asset.Flags);
+		if (ParentPackage == nullptr) {
+			return false;
+		}
+
+		return NewObject<USkeleton>(ParentPackage, AssetName, Asset.Flags);
 	}
 
 	bool FLOLSkeletalMeshBuilder::FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh)
@@ -158,17 +165,27 @@ namespace LOLImporter
 		uint32 SubMeshCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes.Num() : 1;
 		for (uint32 SubMeshID = 0; SubMeshID != SubMeshCount; SubMeshID++)
 		{
+			FString ParentPackageName = Asset.Parent->GetPathName();
 			FName AssetName = Asset.Name;
-			if (Asset.SplitMesh) {
-				AssetName = *(ObjectTools::SanitizeObjectName(AssetName.ToString() + TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name));
+			UObject* ParentPackage = Asset.Parent;
+
+			if (Asset.SplitMesh) {		
+				ParentPackageName = UPackageTools::SanitizePackageName(ParentPackageName + ObjectTools::SanitizeObjectName(TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name));
+				AssetName = *(FPaths::GetBaseFilename(ParentPackageName));
+				ParentPackage = CreatePackage(*ParentPackageName);
+
+				if (ParentPackage == nullptr) {
+					return false;
+				}
 			}
 
-			USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(Asset.Parent, AssetName, Asset.Flags);
+			USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(ParentPackage, AssetName, Asset.Flags);
 
 			if (SkeletalMesh == nullptr) {
 				return false;
 			}
 
+			OutAssets.Add(SkeletalMesh);
 			SkeletalMesh->PreEditChange(nullptr);
 			SkeletalMesh->InvalidateDeriveDataCacheGUID();
 
@@ -207,6 +224,7 @@ namespace LOLImporter
 				if (Skeleton == nullptr) {
 					return false;
 				}
+				OutAssets.Add(Skeleton);
 			}
 
 			FillSkeletonData(Asset, Skeleton, SkeletalMesh);
@@ -219,11 +237,7 @@ namespace LOLImporter
 
 			SkeletalMesh->CalculateInvRefMatrices();
 			SkeletalMesh->Build();
-
-			OutAssets.Add(SkeletalMesh);
 		}
-
-		OutAssets.Add(Skeleton);
 
 		return true;
 	}
