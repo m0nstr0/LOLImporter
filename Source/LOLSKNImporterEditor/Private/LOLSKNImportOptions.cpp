@@ -7,10 +7,8 @@ void ULOLSKNImportOptions::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	NormalImportMethod = ELOLNormalMapImport::NM_CALCULATE;
 	ImportUniformScale = 1.0f;
-	ComputeWeighedNormals = true;
-	GenerateLightmapUV = true;
+	SplitMesh = false;
 }
 
 

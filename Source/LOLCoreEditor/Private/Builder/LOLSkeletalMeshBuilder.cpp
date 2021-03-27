@@ -7,18 +7,19 @@
 
 namespace LOLImporter
 {
-	USkeleton* FLOLSkeletalMeshBuilder::CreateSkeleton(const FLOLSkeletalMeshAsset& Asset, USkeletalMesh* SkeletalMesh)
+	USkeleton* FLOLSkeletalMeshBuilder::CreateSkeleton(const FLOLSkeletalMeshAsset& Asset)
 	{
-		FString BaseName;
-		Asset.Name.ToString(BaseName);
+		FString BaseName = Asset.Name.ToString();
 		FName SkeletonName = *(ObjectTools::SanitizeObjectName(FString::Printf(TEXT("%s_Skeleton"), *BaseName)));
 
-		USkeleton* Skeleton = NewObject<USkeleton>(Asset.Parent, SkeletonName, Asset.Flags);
+		return NewObject<USkeleton>(Asset.Parent, SkeletonName, Asset.Flags);
+	}
 
-		FReferenceSkeleton ReferenceSkeleton;
+	bool FLOLSkeletalMeshBuilder::FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh)
+	{
+		SkeletalMesh->RefSkeleton.Empty();
 		{
-			FReferenceSkeletonModifier ReferenceSkeletonModifier(ReferenceSkeleton, Skeleton);
-			ReferenceSkeleton.Empty();
+			FReferenceSkeletonModifier ReferenceSkeletonModifier(SkeletalMesh->RefSkeleton, Skeleton);
 
 			int16 BoneOffset = 0;
 			if (Asset.Skeleton.IsMultiRoot)
@@ -48,15 +49,24 @@ namespace LOLImporter
 			}
 		}
 
-		Skeleton->RecreateBoneTree(SkeletalMesh);
 		SkeletalMesh->Skeleton = Skeleton;
-		SkeletalMesh->RefSkeleton = ReferenceSkeleton;
 
-		return Skeleton;
+		if (!Skeleton->MergeAllBonesToBoneTree(SkeletalMesh)) {
+			return Skeleton->RecreateBoneTree(SkeletalMesh);
+		}
+
+		return true;
 	}
 
-	void FLOLSkeletalMeshBuilder::FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh)
+	void FLOLSkeletalMeshBuilder::FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, uint32 SubMeshID = 0)
 	{
+		const int32 VertexCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes[SubMeshID].VertexCount : Asset.Mesh.Vertices.Num();
+		const int32 IndexCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes[SubMeshID].IndexCount : Asset.Mesh.Indices.Num();
+		const int32 MaxMaterialIndex = Asset.SplitMesh ? 1 : Asset.Mesh.SubMeshes.Num() - 1;
+		const int32 StartVertex = Asset.SplitMesh ? Asset.Mesh.SubMeshes[SubMeshID].StartVertex : 0;
+		const int32 StartIndex = Asset.SplitMesh ? Asset.Mesh.SubMeshes[SubMeshID].StartIndex : 0;
+		const int32 SubMeshCount = Asset.SplitMesh ? 1 : Asset.Mesh.SubMeshes.Num();
+
 		MeshImportData.bDiffPose = false;
 		MeshImportData.bHasNormals = false;
 		MeshImportData.bHasTangents = false;
@@ -67,13 +77,13 @@ namespace LOLImporter
 		MeshImportData.MorphTargets.Empty();
 		MeshImportData.AlternateInfluences.Empty();
 		MeshImportData.AlternateInfluenceProfileNames.Empty();
-		MeshImportData.MaxMaterialIndex = Asset.Mesh.SubMeshes.Num() - 1;
+		MeshImportData.MaxMaterialIndex = MaxMaterialIndex;
 		MeshImportData.RefBonesBinary.Empty();
 		MeshImportData.Materials.Empty();
-		MeshImportData.Points.Empty(Asset.Mesh.Vertices.Num());
-		MeshImportData.PointToRawMap.Empty(Asset.Mesh.Vertices.Num());
-		MeshImportData.Wedges.Empty(Asset.Mesh.Indices.Num());
-		MeshImportData.Faces.Empty(Asset.Mesh.Indices.Num() / 3);
+		MeshImportData.Points.Empty(VertexCount);
+		MeshImportData.PointToRawMap.Empty(VertexCount);
+		MeshImportData.Wedges.Empty(IndexCount);
+		MeshImportData.Faces.Empty(IndexCount / 3);
 		MeshImportData.NumTexCoords = 1;
 		MeshImportData.Influences.Empty();
 
@@ -83,12 +93,12 @@ namespace LOLImporter
 		}
 
 		//Positions & Weights
-		for (int32 Idx = 0; Idx < Asset.Mesh.Vertices.Num(); Idx++)
+		for (int32 Idx = 0; Idx < VertexCount; Idx++)
 		{
-			FLOLVertex Vertex = Asset.Mesh.Vertices[Idx];
+			FLOLVertex Vertex = Asset.Mesh.Vertices[StartVertex + Idx];
 
 			//Positions
-			MeshImportData.Points.Add(FLOLConverter::ConvertVector(Vertex.Position));
+			MeshImportData.Points.Add(FLOLConverter::ConvertVector(Vertex.Position) * Asset.ImportUniformScale);
 			MeshImportData.PointToRawMap.Add(Idx);
 
 			//Weights & Bones
@@ -101,25 +111,28 @@ namespace LOLImporter
 			}
 		}
 
-		for (const FLOLSubMesh& SubMesh : Asset.Mesh.SubMeshes)
+		for (int32 Idx = 0; Idx < SubMeshCount; Idx++)
 		{
+			const FLOLSubMesh& SubMesh = Asset.Mesh.SubMeshes[(Asset.SplitMesh ? SubMeshID : Idx)];
+
 			FSkeletalMaterial Material;
 			Material.ImportedMaterialSlotName = *(SubMesh.Name);
 			Material.MaterialSlotName = *(SubMesh.Name);
 			Material.MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 			uint32 MaterialIdx = SkeletalMesh->Materials.Add(Material);
 
-			for (uint32 Idx = 0; Idx < SubMesh.IndexCount; Idx += 3) {
+			for (uint32 FaceIdx = 0; FaceIdx < SubMesh.IndexCount; FaceIdx += 3) {
 				SkeletalMeshImportData::FTriangle Triangle;
 				Triangle.SmoothingGroups = 255;
 				Triangle.MatIndex = MaterialIdx;
 
 				for (int32 WedgeIdx = 0; WedgeIdx != 3; WedgeIdx++)
 				{
-					FLOLVertex Vertex = Asset.Mesh.Vertices[Asset.Mesh.Indices[Idx + WedgeIdx + SubMesh.StartIndex]];
+					const int32 IndexID = FaceIdx + WedgeIdx + SubMesh.StartIndex;
+					FLOLVertex Vertex = Asset.Mesh.Vertices[Asset.Mesh.Indices[IndexID]];
 
 					SkeletalMeshImportData::FVertex Wedge;
-					Wedge.VertexIndex = Asset.Mesh.Indices[Idx + WedgeIdx + SubMesh.StartIndex];
+					Wedge.VertexIndex = Asset.Mesh.Indices[IndexID] - StartVertex;
 					Wedge.UVs[0] = Vertex.TexCoord;
 					Triangle.WedgeIndex[WedgeIdx] = MeshImportData.Wedges.Add(Wedge);
 					Triangle.TangentX[WedgeIdx] = FVector::ZeroVector;
@@ -139,56 +152,77 @@ namespace LOLImporter
 
 	bool FLOLSkeletalMeshBuilder::BuildAssets(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets)
 	{
-		USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(Asset.Parent, Asset.Name, Asset.Flags);
-		SkeletalMesh->PreEditChange(nullptr);
-		SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		USkeleton* Skeleton = nullptr;
+		FReferenceSkeleton ReferenceSkeleton;
 
-		FSkeletalMeshImportData MeshImportData;
-		FillMeshImportData(Asset, MeshImportData, SkeletalMesh);
-
-		IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
-
-		FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
-		SkeletalMeshModel->LODModels.Empty();
-		SkeletalMeshModel->LODModels.Add(new FSkeletalMeshLODModel());
-		FSkeletalMeshLODModel& SkeletalMeshLODModel = SkeletalMeshModel->LODModels[0];
-		SkeletalMeshLODModel.NumTexCoords = 1;
-
-		FSkeletalMeshLODInfo& SkeletalMeshLODInfo = SkeletalMesh->AddLODInfo();
-		SkeletalMeshLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;
-		SkeletalMeshLODInfo.ReductionSettings.NumOfVertPercentage = 1.0f;
-		SkeletalMeshLODInfo.ReductionSettings.MaxDeviationPercentage = 0.0f;
-		SkeletalMeshLODInfo.LODHysteresis = 0.02f;
-		SkeletalMeshLODInfo.BuildSettings.bRecomputeNormals = true;
-		SkeletalMeshLODInfo.BuildSettings.bRecomputeTangents = true;
-		SkeletalMeshLODInfo.BuildSettings.bBuildAdjacencyBuffer = false;
-		SkeletalMeshLODInfo.BuildSettings.bUseMikkTSpace = true;
-		SkeletalMeshLODInfo.BuildSettings.bComputeWeightedNormals = true;
-		SkeletalMeshLODInfo.BuildSettings.bRemoveDegenerates = false;
-		SkeletalMeshLODInfo.BuildSettings.ThresholdPosition = 0.0f;
-		SkeletalMeshLODInfo.BuildSettings.ThresholdTangentNormal = 0.0f;
-		SkeletalMeshLODInfo.BuildSettings.ThresholdUV = 0.0f;
-		SkeletalMeshLODInfo.BuildSettings.MorphThresholdPosition = 0.0f;
-
-		SkeletalMesh->SaveLODImportedData(0, MeshImportData);
-		SkeletalMesh->SetLODImportedDataVersions(0, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
-
-		USkeleton* Skeleton = CreateSkeleton(Asset, SkeletalMesh);
-
-		if (!MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, 0, false))
+		uint32 SubMeshCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes.Num() : 1;
+		for (uint32 SubMeshID = 0; SubMeshID != SubMeshCount; SubMeshID++)
 		{
-			return false;
+			FName AssetName = Asset.Name;
+			if (Asset.SplitMesh) {
+				AssetName = *(ObjectTools::SanitizeObjectName(AssetName.ToString() + TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name));
+			}
+
+			USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(Asset.Parent, AssetName, Asset.Flags);
+
+			if (SkeletalMesh == nullptr) {
+				return false;
+			}
+
+			SkeletalMesh->PreEditChange(nullptr);
+			SkeletalMesh->InvalidateDeriveDataCacheGUID();
+
+			FSkeletalMeshImportData MeshImportData;
+			FillMeshImportData(Asset, MeshImportData, SkeletalMesh, SubMeshID);
+
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
+
+			FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
+			SkeletalMeshModel->LODModels.Empty();
+			SkeletalMeshModel->LODModels.Add(new FSkeletalMeshLODModel());
+			FSkeletalMeshLODModel& SkeletalMeshLODModel = SkeletalMeshModel->LODModels[0];
+			SkeletalMeshLODModel.NumTexCoords = 1;
+
+			FSkeletalMeshLODInfo& SkeletalMeshLODInfo = SkeletalMesh->AddLODInfo();
+			SkeletalMeshLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;
+			SkeletalMeshLODInfo.ReductionSettings.NumOfVertPercentage = 1.0f;
+			SkeletalMeshLODInfo.ReductionSettings.MaxDeviationPercentage = 0.0f;
+			SkeletalMeshLODInfo.LODHysteresis = 0.02f;
+			SkeletalMeshLODInfo.BuildSettings.bRecomputeNormals = true;
+			SkeletalMeshLODInfo.BuildSettings.bRecomputeTangents = true;
+			SkeletalMeshLODInfo.BuildSettings.bBuildAdjacencyBuffer = false;
+			SkeletalMeshLODInfo.BuildSettings.bUseMikkTSpace = true;
+			SkeletalMeshLODInfo.BuildSettings.bComputeWeightedNormals = true;
+			SkeletalMeshLODInfo.BuildSettings.bRemoveDegenerates = false;
+			SkeletalMeshLODInfo.BuildSettings.ThresholdPosition = 0.0f;
+			SkeletalMeshLODInfo.BuildSettings.ThresholdTangentNormal = 0.0f;
+			SkeletalMeshLODInfo.BuildSettings.ThresholdUV = 0.0f;
+			SkeletalMeshLODInfo.BuildSettings.MorphThresholdPosition = 0.0f;
+
+			SkeletalMesh->SaveLODImportedData(0, MeshImportData);
+			SkeletalMesh->SetLODImportedDataVersions(0, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+
+			if (Skeleton == nullptr) {
+				Skeleton = CreateSkeleton(Asset);
+				if (Skeleton == nullptr) {
+					return false;
+				}
+			}
+
+			FillSkeletonData(Asset, Skeleton, SkeletalMesh);
+
+			if (!MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, 0, false)) {
+				return false;
+			}
+
+			USkeletalMesh::CalculateRequiredBones(SkeletalMeshLODModel, SkeletalMesh->RefSkeleton, nullptr);
+
+			SkeletalMesh->CalculateInvRefMatrices();
+			SkeletalMesh->Build();
+
+			OutAssets.Add(SkeletalMesh);
 		}
 
-		USkeletalMesh::CalculateRequiredBones(SkeletalMeshLODModel, SkeletalMesh->RefSkeleton, nullptr);
-
-		SkeletalMesh->CalculateInvRefMatrices();
-		SkeletalMesh->Build();
-
-		Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
-		SkeletalMesh->Skeleton = Skeleton;
-
-		OutAssets.Add(SkeletalMesh);
 		OutAssets.Add(Skeleton);
 
 		return true;

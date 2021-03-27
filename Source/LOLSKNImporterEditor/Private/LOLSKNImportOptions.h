@@ -29,13 +29,7 @@ public:
 	float ImportUniformScale;
 
 	UPROPERTY(config, EditAnywhere, Category = Generation)
-	ELOLNormalMapImport NormalImportMethod;
-
-	UPROPERTY(config, EditAnywhere, Category = Generation)
-	bool ComputeWeighedNormals;
-
-	UPROPERTY(config, EditAnywhere, Category = Generation, meta = (DisplayName = "Generate Lightmap UVs"))
-	bool GenerateLightmapUV;
+	bool SplitMesh;
 
 	virtual FText GetErrors() override;
 };

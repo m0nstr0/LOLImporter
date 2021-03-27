@@ -49,6 +49,9 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	}
 
 	LOLImporter::FLOLSkeletalMeshAsset Asset(InParent, InName, Flags);
+	Asset.SplitMesh = ImportOptions->SplitMesh;
+	Asset.ImportUniformScale = ImportOptions->ImportUniformScale;
+	
 	if (!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, Filename) ||
 		!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, ImportOptions->SkeletonFilePath.FilePath)) 
 	{
@@ -59,6 +62,14 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	TArray<UObject*> Objects;
 	if (!LOLImporter::FLOLSkeletalMeshBuilder().BuildAssets(Asset, Objects) || Objects.Num() == 0)
 	{
+		for (UObject* Object : Objects)
+		{
+			if (Object != nullptr)
+			{
+				Object->MarkPendingKill();
+				Object = nullptr;
+			}
+		}
 		Warn->Log(ELogVerbosity::Error, "Error importing file");
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 		return nullptr;

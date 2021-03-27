@@ -12,8 +12,9 @@ namespace LOLImporter
 	class LOLCOREEDITOR_API FLOLSkeletalMeshBuilder
 	{
 	private:
-		USkeleton* CreateSkeleton(const FLOLSkeletalMeshAsset& Asset, USkeletalMesh* SkeletalMesh);
-		void FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh);
+		bool FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh);
+		USkeleton* CreateSkeleton(const FLOLSkeletalMeshAsset& Asset);
+		void FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, uint32 SubMeshID);
 	public:
 		bool BuildAssets(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets);
 	};
