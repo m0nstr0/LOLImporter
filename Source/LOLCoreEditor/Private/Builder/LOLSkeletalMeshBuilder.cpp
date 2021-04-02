@@ -9,7 +9,7 @@
 namespace LOLImporter
 {
 	template<class T>
-	T* FLOLSkeletalMeshBuilder::CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset,  const FString& AssetNameSufix)
+	T* FLOLSkeletalMeshBuilder::CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets, const FString& AssetNameSufix)
 	{
 		FString ParentPackageName = UPackageTools::SanitizePackageName(Asset.Parent->GetPathName() + ObjectTools::SanitizeObjectName(AssetNameSufix));
 		UObject* ParentPackage = CreatePackage(*ParentPackageName);
@@ -18,7 +18,10 @@ namespace LOLImporter
 			return nullptr;
 		}
 
-		return NewObject<T>(ParentPackage, *(FPaths::GetBaseFilename(ParentPackageName)), Asset.Flags);
+		T* Result = NewObject<T>(ParentPackage, *(FPaths::GetBaseFilename(ParentPackageName)), Asset.Flags);
+		OutAssets.Add(Result);
+
+		return Result;
 	}
 
 	void FLOLSkeletalMeshBuilder::FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton)
@@ -209,7 +212,7 @@ namespace LOLImporter
 
 		SkeletalMesh->Skeleton = Skeleton;
 		if (!Skeleton->MergeAllBonesToBoneTree(SkeletalMesh) && !Skeleton->RecreateBoneTree(SkeletalMesh)) {
-			return nullptr;
+			return false;
 		}
 
 		IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
@@ -231,46 +234,35 @@ namespace LOLImporter
 		{
 			if (Object != nullptr)
 			{
+				Object->ClearFlags(RF_Public | RF_Standalone);
+				Object->RemoveFromRoot();
 				Object->MarkPendingKill();
 			}
 		}
+
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		OutAssets.Empty();
 	}
 
 	bool FLOLSkeletalMeshBuilder::BuildAssets(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets)
 	{
 		OutAssets.Empty();
-		USkeleton* Skeleton = CreateObjectAndPackage<USkeleton>(Asset, TEXT("_Skeleton"));
+
+		USkeleton* Skeleton = CreateObjectAndPackage<USkeleton>(Asset, OutAssets, TEXT("_Skeleton"));
 		if (!Skeleton) {
 			return false;
 		}
-		OutAssets.Add(Skeleton);
 
-		if (Asset.SplitMesh)
+		const int32 SubMeshCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes.Num() : 1;
+		for (int32 SubMeshID = 0; SubMeshID < SubMeshCount; SubMeshID++)
 		{
-			for (int32 SubMeshID = 0; SubMeshID < Asset.Mesh.SubMeshes.Num(); SubMeshID++)
+			USkeletalMesh* SkeletalMesh = CreateObjectAndPackage<USkeletalMesh>(Asset, OutAssets, Asset.SplitMesh ? TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name : TEXT(""));
+			if (!SkeletalMesh || !BuildSkeletalMesh(Asset, Skeleton, SkeletalMesh, Asset.SplitMesh ? SubMeshID : INDEX_NONE))
 			{
-				USkeletalMesh* SkeletalMesh = CreateObjectAndPackage<USkeletalMesh>(Asset, TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name);
-				if (!SkeletalMesh || !BuildSkeletalMesh(Asset, Skeleton, SkeletalMesh, SubMeshID))
-				{
-					Clean(OutAssets);
-					return false;
-				}
-
-				OutAssets.Add(SkeletalMesh);
+				Clean(OutAssets);
+				return false;
 			}
-
-			return true;
 		}
-		
-		USkeletalMesh* SkeletalMesh = CreateObjectAndPackage<USkeletalMesh>(Asset);
-		if (!SkeletalMesh || !BuildSkeletalMesh(Asset, Skeleton, SkeletalMesh))
-		{
-			Clean(OutAssets);
-			return false;
-		}
-
-		OutAssets.Add(SkeletalMesh);
 
 		return true;
 	}

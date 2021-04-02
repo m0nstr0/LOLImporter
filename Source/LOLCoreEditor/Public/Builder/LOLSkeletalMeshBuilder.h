@@ -22,7 +22,7 @@ namespace LOLImporter
 			TMap<FString, int32> RawToMaterialMap;
 		};
 		template<class T>
-		T* CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset, const FString& AssetNameSufix = "");
+		T* CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets, const FString& AssetNameSufix = "");
 		void FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton);
 		int32 FillMeshMaterialData(const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh);
 		bool FillSubMeshGeometryData(const FLOLSkeletalMeshAsset& Asset, const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh);

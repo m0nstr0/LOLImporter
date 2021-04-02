@@ -15,6 +15,7 @@ ULOLSKNImportFactory::ULOLSKNImportFactory(const FObjectInitializer& ObjectIniti
 	bEditAfterNew = false;
 	bEditorImport = true;
 	bText = false;
+
 	SupportedClass = USkeletalMesh::StaticClass();
 
 	Formats.Add(TEXT("skn;League Of Legends Animated Model"));
@@ -60,6 +61,7 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	}
 
 	TArray<UObject*> Objects;
+	UObject* ObjectToReturn = nullptr;
 	if (!LOLImporter::FLOLSkeletalMeshBuilder().BuildAssets(Asset, Objects) || Objects.Num() == 0)
 	{
 		Warn->Log(ELogVerbosity::Error, "Error importing file");
@@ -69,7 +71,9 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 
 	for (UObject* Object : Objects)
 	{
-		if (Object != Objects[0]) {
+		if (ObjectToReturn == nullptr && Object->IsA(USkeletalMesh::StaticClass())) {
+			ObjectToReturn = Object;
+		} else {
 			AdditionalImportedObjects.Add(Object);
 		}
 
@@ -79,8 +83,8 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	}
 
 	bOutOperationCanceled = false;
-	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Objects[0]);
-	return Objects[0];
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ObjectToReturn);
+	return ObjectToReturn;
 }
 
 UClass* ULOLSKNImportFactory::ResolveSupportedClass()
