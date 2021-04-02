@@ -55,9 +55,9 @@ namespace LOLImporter
 		}
 	}
 
-	int32 FLOLSkeletalMeshBuilder::FillMeshMaterialData(const FLOLSubMesh& SubMesh, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, FLOLSkeletalMeshBuilderRawMapData& RawMapData)
+	int32 FLOLSkeletalMeshBuilder::FillMeshMaterialData(const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh)
 	{
-		auto& RawToMaterialMap = RawMapData.RawToMaterialMap;
+		auto& RawToMaterialMap = MeshImportData.RawToMaterialMap;
 
 		if (RawToMaterialMap.Contains(SubMesh.Name)) {
 			return RawToMaterialMap[SubMesh.Name];
@@ -74,10 +74,10 @@ namespace LOLImporter
 		return RawToMaterialMap[SubMesh.Name];
 	}
 
-	bool FLOLSkeletalMeshBuilder::FillSubMeshGeometryData(const FLOLSkeletalMeshAsset& Asset, const FLOLSubMesh& SubMesh, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, FLOLSkeletalMeshBuilderRawMapData& RawMapData)
+	bool FLOLSkeletalMeshBuilder::FillSubMeshGeometryData(const FLOLSkeletalMeshAsset& Asset, const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh)
 	{
-		auto& RawToPointMap = RawMapData.RawToPointMap;
-		auto& RawToIndexMap = RawMapData.RawToIndexMap;
+		auto& RawToPointMap = MeshImportData.RawToPointMap;
+		auto& RawToIndexMap = MeshImportData.RawToIndexMap;
 		const auto& Indices = Asset.Mesh.Indices;
 		const auto& Vertices = Asset.Mesh.Vertices;
 
@@ -85,7 +85,7 @@ namespace LOLImporter
 		{
 			SkeletalMeshImportData::FTriangle& Triangle = MeshImportData.Faces.Emplace_GetRef();
 			Triangle.SmoothingGroups = 255;
-			Triangle.MatIndex = FillMeshMaterialData(SubMesh, MeshImportData, SkeletalMesh, RawMapData);
+			Triangle.MatIndex = FillMeshMaterialData(SubMesh, MeshImportData, SkeletalMesh);
 
 			for (uint32 WeightID = 0; WeightID != 3; WeightID++)
 			{
@@ -146,7 +146,7 @@ namespace LOLImporter
 		SkeletalMesh->PreEditChange(nullptr);
 		SkeletalMesh->InvalidateDeriveDataCacheGUID();
 
-		FSkeletalMeshImportData MeshImportData;
+		FLOLSkeletalMeshImportData MeshImportData;
 		MeshImportData.bDiffPose = false;
 		MeshImportData.bHasNormals = false;
 		MeshImportData.bHasTangents = false;
@@ -169,10 +169,9 @@ namespace LOLImporter
 		MeshImportData.Faces.Empty(Asset.Mesh.Indices.Num() / 3);
 		MeshImportData.MaxMaterialIndex = 0;
 
-		FLOLSkeletalMeshBuilderRawMapData RawMapData;
 		const TArray<FLOLSubMesh>& SubMeshes = (SubMeshID == INDEX_NONE) ? Asset.Mesh.SubMeshes : TArray<FLOLSubMesh>({ Asset.Mesh.SubMeshes[SubMeshID] });
 		for (const FLOLSubMesh& SubMesh : SubMeshes) {
-			if (!FillSubMeshGeometryData(Asset, SubMesh, MeshImportData, SkeletalMesh, RawMapData)) {
+			if (!FillSubMeshGeometryData(Asset, SubMesh, MeshImportData, SkeletalMesh)) {
 				return false;
 			}
 		}
