@@ -62,14 +62,6 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	TArray<UObject*> Objects;
 	if (!LOLImporter::FLOLSkeletalMeshBuilder().BuildAssets(Asset, Objects) || Objects.Num() == 0)
 	{
-		for (UObject* Object : Objects)
-		{
-			if (Object != nullptr)
-			{
-				Object->MarkPendingKill();
-				Object = nullptr;
-			}
-		}
 		Warn->Log(ELogVerbosity::Error, "Error importing file");
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 		return nullptr;

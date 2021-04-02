@@ -12,10 +12,21 @@ namespace LOLImporter
 	class LOLCOREEDITOR_API FLOLSkeletalMeshBuilder
 	{
 	private:
-		bool FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh);
-		USkeleton* CreateSkeleton(const FLOLSkeletalMeshAsset& Asset);
-		void FillMeshImportData(const FLOLSkeletalMeshAsset& Asset, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, uint32 SubMeshID);
+		struct FLOLSkeletalMeshBuilderRawMapData
+		{
+			TMap<int32, int32> RawToPointMap;
+			TMap<int32, int32> RawToIndexMap;
+			TMap<FString, int32> RawToMaterialMap;
+		};
+		template<class T>
+		T* CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset, const FString& AssetNameSufix = "");
+		void FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton);
+		int32 FillMeshMaterialData(const FLOLSubMesh& SubMesh, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, FLOLSkeletalMeshBuilderRawMapData& RawMapData);
+		bool FillSubMeshGeometryData(const FLOLSkeletalMeshAsset& Asset, const FLOLSubMesh& SubMesh, FSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh, FLOLSkeletalMeshBuilderRawMapData& RawMapData);
+		bool BuildSkeletalMesh(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh, int32 SubMeshID = INDEX_NONE);
+		void Clean(TArray<UObject*>& OutAssets);
 	public:
 		bool BuildAssets(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets);
+
 	};
 }

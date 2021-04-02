@@ -151,7 +151,7 @@ namespace LOLImporter
             GetReader().Serialize(&Vertex.Position.Y, sizeof(Vertex.Position.Y));
             GetReader().Serialize(&Vertex.Position.Z, sizeof(Vertex.Position.Z));
 
-            GetReader().Serialize(Vertex.BoneIndex, sizeof(Vertex.BoneIndex));
+            GetReader().Serialize(Vertex.JointIndex, sizeof(Vertex.JointIndex));
             GetReader().Serialize(Vertex.Weight, sizeof(Vertex.Weight));
 
             GetReader().Serialize(&Vertex.Normal.X, sizeof(Vertex.Normal.X));

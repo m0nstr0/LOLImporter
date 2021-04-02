@@ -7,7 +7,7 @@ namespace LOLImporter
     struct FLOLVertex
     {
 		FVector Position;
-        uint8 BoneIndex[4];
+        uint8 JointIndex[4];
         float Weight[4];
 		FVector Normal;
 		FVector2D TexCoord;
