@@ -23,7 +23,8 @@ namespace LOLImporter
 		};
 		template<class T>
 		T* CreateObjectAndPackage(const FLOLSkeletalMeshAsset& Asset, TArray<UObject*>& OutAssets, const FString& AssetNameSufix = "");
-		void FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton);
+		bool PreprocessSkeleton(const FLOLSkeletalMeshAsset& Asset, TArray<FLOLJoint>& Joints, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences);
+		void FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, TArray<FLOLJoint>& Joints, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton);
 		int32 FillMeshMaterialData(const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh);
 		bool FillSubMeshGeometryData(const FLOLSkeletalMeshAsset& Asset, const FLOLSubMesh& SubMesh, FLOLSkeletalMeshImportData& MeshImportData, USkeletalMesh* SkeletalMesh);
 		bool BuildSkeletalMesh(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, USkeletalMesh* SkeletalMesh, int32 SubMeshID = INDEX_NONE);

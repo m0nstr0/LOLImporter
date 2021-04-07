@@ -24,7 +24,74 @@ namespace LOLImporter
 		return Result;
 	}
 
-	void FLOLSkeletalMeshBuilder::FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton)
+	bool FLOLSkeletalMeshBuilder::PreprocessSkeleton(const FLOLSkeletalMeshAsset& Asset, TArray<FLOLJoint>& Joints, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
+	{
+		if (!Asset.RemoveUnusedJoints) {
+			Joints = Asset.Skeleton.Joints;
+			return true;
+		}
+
+		int32 BoneOffset = Asset.Skeleton.IsMultiRoot ? 1 : 0;
+
+		//Get active bones
+		TSet<int32> JointsWithWeights;
+		for (const SkeletalMeshImportData::FRawBoneInfluence& Influence : Influences) 
+		{
+			int32 BoneIndex = Influence.BoneIndex - BoneOffset;
+			if (JointsWithWeights.Contains(BoneIndex)) {
+				continue;
+			}
+
+			JointsWithWeights.Add(BoneIndex);
+
+			int32 ParentBoneIndex = BoneIndex;
+			while (ParentBoneIndex != -1)
+			{
+				if (!Asset.Skeleton.Joints.IsValidIndex(ParentBoneIndex)) {
+					return false;
+				}
+
+				ParentBoneIndex = Asset.Skeleton.Joints[ParentBoneIndex].ParentID;
+				if (JointsWithWeights.Contains(ParentBoneIndex)) {
+					break;
+				}
+
+				JointsWithWeights.Add(ParentBoneIndex);
+			}
+		}
+
+		Joints = Asset.Skeleton.Joints.FilterByPredicate([&JointsWithWeights](const FLOLJoint& Joint) -> bool {
+			return JointsWithWeights.Contains(Joint.ID);
+		});
+
+		TMap<int32, int32> OldJointIDToNew;
+		for (int32 JointID = 0; JointID != Joints.Num(); JointID++)
+		{
+			OldJointIDToNew.Add(Joints[JointID].ID, JointID);
+		}
+
+		for (int32 JointID = 0; JointID != Joints.Num(); JointID++)
+		{
+			if (Joints[JointID].ParentID != -1) {
+				Joints[JointID].ParentID = OldJointIDToNew[Joints[JointID].ParentID];
+			}
+		}
+
+
+		for (int32 JointID = 0; JointID != Joints.Num(); JointID++)
+		{
+			OldJointIDToNew.Add(Joints[JointID].ID, JointID);
+		}
+
+		for (SkeletalMeshImportData::FRawBoneInfluence& Influence : Influences)
+		{
+			Influence.BoneIndex = OldJointIDToNew[Influence.BoneIndex - BoneOffset] + BoneOffset;
+		}
+
+		return true;
+	}
+
+	void FLOLSkeletalMeshBuilder::FillSkeletonData(const FLOLSkeletalMeshAsset& Asset, TArray<FLOLJoint>& Joints, USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton)
 	{
 		RefSkeleton.Empty();
 		{
@@ -41,7 +108,7 @@ namespace LOLImporter
 				BoneOffset = 1;
 			}
 
-			for (const FLOLJoint& Joint : Asset.Skeleton.Joints)
+			for (const FLOLJoint& Joint : Joints)
 			{
 				FMeshBoneInfo MeshBoneInfo;
 				MeshBoneInfo.ParentIndex = Joint.ParentID + BoneOffset;
@@ -180,6 +247,10 @@ namespace LOLImporter
 		}
 
 		FLODUtilities::ProcessImportMeshInfluences(MeshImportData.Wedges.Num(), MeshImportData.Influences, SkeletalMesh->GetPathName());
+
+		TArray<FLOLJoint> Joints;
+		PreprocessSkeleton(Asset, Joints, MeshImportData.Influences);
+
 		SkeletalMesh->SetImportedBounds(FBoxSphereBounds(&MeshImportData.Points[0], (uint32)MeshImportData.Points.Num()));
 		SkeletalMesh->ResetLODInfo();
 
@@ -208,7 +279,7 @@ namespace LOLImporter
 		SkeletalMesh->SaveLODImportedData(0, MeshImportData);
 		SkeletalMesh->SetLODImportedDataVersions(0, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
 
-		FillSkeletonData(Asset, Skeleton, SkeletalMesh->RefSkeleton);
+		FillSkeletonData(Asset, Joints, Skeleton, SkeletalMesh->RefSkeleton);
 
 		SkeletalMesh->Skeleton = Skeleton;
 		if (!Skeleton->MergeAllBonesToBoneTree(SkeletalMesh) && !Skeleton->RecreateBoneTree(SkeletalMesh)) {
@@ -248,16 +319,15 @@ namespace LOLImporter
 	{
 		OutAssets.Empty();
 
-		USkeleton* Skeleton = CreateObjectAndPackage<USkeleton>(Asset, OutAssets, TEXT("_Skeleton"));
-		if (!Skeleton) {
-			return false;
-		}
-
+		USkeleton* Skeleton = nullptr;	
 		const int32 SubMeshCount = Asset.SplitMesh ? Asset.Mesh.SubMeshes.Num() : 1;
 		for (int32 SubMeshID = 0; SubMeshID < SubMeshCount; SubMeshID++)
 		{
+			if (Asset.RemoveUnusedJoints && Asset.SplitMesh || Skeleton == nullptr) {
+				Skeleton = CreateObjectAndPackage<USkeleton>(Asset, OutAssets, Asset.SplitMesh ? TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name + TEXT("_Skeleton") : TEXT("_Skeleton"));
+			}
 			USkeletalMesh* SkeletalMesh = CreateObjectAndPackage<USkeletalMesh>(Asset, OutAssets, Asset.SplitMesh ? TEXT("_") + Asset.Mesh.SubMeshes[SubMeshID].Name : TEXT(""));
-			if (!SkeletalMesh || !BuildSkeletalMesh(Asset, Skeleton, SkeletalMesh, Asset.SplitMesh ? SubMeshID : INDEX_NONE))
+			if (!Skeleton || !SkeletalMesh || !BuildSkeletalMesh(Asset, Skeleton, SkeletalMesh, Asset.SplitMesh ? SubMeshID : INDEX_NONE))
 			{
 				Clean(OutAssets);
 				return false;

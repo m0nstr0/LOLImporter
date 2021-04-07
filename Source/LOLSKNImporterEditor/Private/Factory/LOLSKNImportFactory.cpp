@@ -52,7 +52,8 @@ UObject* ULOLSKNImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPar
 	LOLImporter::FLOLSkeletalMeshAsset Asset(InParent, InName, Flags);
 	Asset.SplitMesh = ImportOptions->SplitMesh;
 	Asset.ImportUniformScale = ImportOptions->ImportUniformScale;
-	
+	Asset.RemoveUnusedJoints = ImportOptions->RemoveUnusedJoints;
+
 	if (!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, Filename) ||
 		!LOLImporter::LOLSkeletalMeshReaderFactory::Read(Warn, Asset, ImportOptions->SkeletonFilePath.FilePath)) 
 	{

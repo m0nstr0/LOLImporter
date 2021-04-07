@@ -31,5 +31,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Generation)
 	bool SplitMesh;
 
+	UPROPERTY(config, EditAnywhere, Category = Generation)
+	bool RemoveUnusedJoints;
+
 	virtual FText GetErrors() override;
 };

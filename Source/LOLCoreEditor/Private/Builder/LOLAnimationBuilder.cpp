@@ -93,6 +93,9 @@ namespace LOLImporter
 
 
 		for (uint32 BoneHash : Animation.JointHashes) {
+			if (!JointHashToName.Contains(BoneHash)) {
+				continue;
+			}
 			FRawAnimSequenceTrack RawAnimSequenceTrack;
 			for (int32 FrameIdx = 0; FrameIdx < Animation.Frames.Num(); FrameIdx++) {
 				RawAnimSequenceTrack.PosKeys.Add(Translations[BoneHash].Eval(FrameIdx));

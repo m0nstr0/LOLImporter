@@ -16,5 +16,6 @@ namespace LOLImporter
 		FLOLSkeleton Skeleton;
 		float ImportUniformScale;
 		bool SplitMesh;
+		bool RemoveUnusedJoints;
 	};
 }
